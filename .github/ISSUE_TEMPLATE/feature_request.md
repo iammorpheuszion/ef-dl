@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature or enhancement
+about: Blue pill or red pill feature
 title: "[FEATURE] "
 labels: ["enhancement", "triage"]
 assignees: ""

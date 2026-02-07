@@ -10,7 +10,7 @@ env:
   DOCKER_REGISTRY: docker.io
   DOCKERHUB_IMAGE_NAME: ${{ secrets.DOCKER_USER }}/${{ github.event.repository.name }}
   GHCR_REGISTRY: ghcr.io
-  GHCR_IMAGE_NAME: ${{ github.repository }}
+  GHCR_IMAGE_NAME: ${{ github.repository_owner }}/${{ github.event.repository.name }}
   IMAGE_ARCHITECTURES: linux/amd64,linux/arm64
   PLATFORMS: amd64,arm64
 
@@ -90,7 +90,6 @@ jobs:
         with:
           subject-name: | 
             ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE_NAME }}
-            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKERHUB_IMAGE_NAME }}
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
 
