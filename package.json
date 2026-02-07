@@ -1,0 +1,65 @@
+{
+  "name": "ef-dl",
+  "version": "1.0.0",
+  "description": "Educational tool to download files from the US DOJ Epstein Files search portal (Bun runtime required)",
+  "module": "index.ts",
+  "type": "module",
+  "bin": {
+    "ef-dl": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "src",
+    "fonts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "bun --watch --hot index.ts",
+    "start": "bun index.ts",
+    "build": "bun build index.ts --outdir dist",
+    "typecheck": "tsc --noEmit",
+    "test:browser": "bun src/browser-client.ts"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "keywords": [
+    "bun",
+    "bun-only",
+    "cli",
+    "downloader",
+    "epstein files",
+    "epstein documents",
+    "epstein case files",
+    "educational"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iammorpheuszion/ef-dl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iammorpheuszion/ef-dl/issues"
+  },
+  "homepage": "https://github.com/iammorpheuszion/ef-dl",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/figlet": "^1.7.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "browserless": "^10.9.18",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "figlet": "^1.10.0",
+    "multi-progress-bars": "^5.0.3",
+    "puppeteer": "^24.36.1"
+  }
+}

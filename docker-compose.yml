@@ -1,0 +1,15 @@
+services:
+  ef-dl:
+    image: iammorpheus/ef-dl:latest
+    # build: .
+    container_name: ef-dl
+    volumes:
+      - ./downloads:/app/downloads # Persist downloads to host
+    environment:
+      - NODE_ENV=production
+      - FORCE_COLOR=1
+    stdin_open: true # Run in interactive mode by default (required for Ctrl+C to work)
+    tty: true # Enable init for proper signal handling (Ctrl+C support)
+    init: true
+    # Override default command if needed
+    # command: bun index.ts -s "your search term" -d ./downloads

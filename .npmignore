@@ -1,0 +1,30 @@
+# Source files
+src/
+index.ts
+*.ts
+!*.d.ts
+
+# Config files
+tsconfig.json
+.gitignore
+.git/
+
+# Development
+node_modules/
+*.log
+.DS_Store
+.vscode/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+docker/
+
+# Documentation
+docs/
+
+# Downloads directory
+downloads/
+
+# Fonts
+fonts/
