@@ -1,6 +1,6 @@
 ---
 name: 🐛 Bug Report
-about: Report a bug or unexpected behavior
+about: A glitch in the matrix
 title: "[BUG] "
 labels: ["bug", "triage"]
 assignees: ""

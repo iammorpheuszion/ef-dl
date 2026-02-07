@@ -8,22 +8,35 @@
   \/_____/   \/_/     \/____/   \/_____/
 ```
 
-> **DISCLAIMER**: This application is for **EDUCATIONAL PURPOSES ONLY**. By using this tool, you certify that you are 18 years of age or older and will use it responsibly and legally.
+> **DISCLAIMER**: This application is for **EDUCATIONAL PURPOSES ONLY**. By using this tool, you certify that you are 18 years of age or older and will use responsibly.
 
-An interactive CLI tool for downloading the epstein files from the DOJ Epstein Files search portal. This tool automates the process of searching, downloading metadata, and downloading PDF files with support for pagination, prefixes, and deduplication.
+Currently the DOJ search portal is very limited and requires a lot of manual intervention.
+
+The aim of EF-DL is to help expedite the processing of the epstein files by automating downloads to enable the use of AI models to process the documents after.
+EF-DL is an interactive CLI tool for downloading the epstein files from the Epstein Files search portal. Automates the process of searching, downloading metadata, and downloading PDF files with support for pagination, prefixes, and deduplication.
+
+<div align="center">
+<img width="500"  alt="Image" src="https://github.com/user-attachments/assets/7f41da27-8311-4d2c-9c69-b0dd30e3e6a3" />
+</div>
 
 ## Table of Contents
 
+<details>
+<summary>View TOC:</summary>
+
 - [Features](#features)
 - [Installation](#installation)
-  - [Prerequisites](#prerequisites)
-  - [Setup](#setup)
+  - [Option 1: Docker (Recommended)](#option-1-docker-recommended)
+  - [Option 2: Bun Package Manager](#option-2-bun-package-manager)
+  - [Option 3: Local Development](#option-3-local-development)
 - [Quick Start](#quick-start)
-  - [Start with interactive mode](#start-with-interactive-mode-default)
+  - [Start with interactive mode (default)](#start-with-interactive-mode-default)
   - [Download all pages](#download-all-pages)
   - [Download a specific page](#download-a-specific-page)
   - [Interactive mode with pre-filled values](#interactive-mode-with-pre-filled-values)
 - [Docker Usage](#docker-usage)
+  - [Quick Start with Docker](#quick-start-with-docker)
+  - [Docker Commands](#docker-commands)
 - [Usage](#usage)
   - [Command Line Options](#command-line-options)
   - [Interactive Mode](#interactive-mode)
@@ -32,7 +45,11 @@ An interactive CLI tool for downloading the epstein files from the DOJ Epstein F
 - [File Organization](#file-organization)
 - [Tech Stack](#tech-stack)
 - [Development](#development)
+- [Important Notes](#important-notes)
+- [Contributing](#contributing)
 - [License](#license)
+
+</details>
 
 ## Features
 
@@ -50,7 +67,7 @@ An interactive CLI tool for downloading the epstein files from the DOJ Epstein F
 
 ## Installation
 
-> **⚠️ Bun Runtime Required**: This package uses Bun-specific APIs (`bun:sqlite`) and requires the Bun runtime. It will not work with Node.js.
+> **Bun Runtime Required**: This package uses Bun-specific APIs (`bun:sqlite`) and requires the Bun runtime. It will not work with Node.js.
 
 ### Option 1: Docker (Recommended)
 
@@ -60,9 +77,9 @@ No local runtime installation needed - just Docker:
 - [Docker Compose](https://docs.docker.com/compose/) v2.0.0 or higher (optional)
 
 Docker Images:
+
 - Docker Hub: `iammorpheus/ef-dl:latest`
 - GitHub Container Registry: `ghcr.io/iammorpheuszion/ef-dl:latest`
-
 
 ```bash
 # Option A: Using docker-compose (recommended)
@@ -78,7 +95,7 @@ docker compose run -it --rm ef-dl
 docker run -it --rm -v ./downloads:/app/downloads iammorpheus/ef-dl
 ```
 
-See [Docker Usage](#-docker-usage) for more details.
+See [Docker Usage](#docker-usage) for more details.
 
 ### Option 2: Bun Package Manager
 
@@ -123,42 +140,42 @@ bun run typecheck
 
 </details>
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Start with interactive mode (default)
 
 Running without arguments automatically starts interactive mode:
 
 ```bash
-bun index.ts
-```
-
-### Download all pages
-
-```bash
-bun index.ts -s "your search term" -d ./downloads
-```
-
-### Download a specific page
-
-```bash
-bun index.ts -s "your search term" -p 5 -d ./downloads
+bun run start
 ```
 
 ### Interactive mode with pre-filled values
 
 ```bash
-bun index.ts -i -s "your search term" -d ./downloads
+bun run start -i -s "your search term" -p 5
 ```
 
-## 📖 Usage
+### Download all pages
+
+```bash
+bun run start -s "your search term" -d ./downloads
+```
+
+### Download a specific page
+
+```bash
+bun run start -s "your search term" -p 5 -d ./downloads
+```
+
+## Usage
 
 ### Command Line Options
 
 | Flag            | Short | Description                               | Required | Default     |
 | --------------- | ----- | ----------------------------------------- | -------- | ----------- |
-| `--search`      | `-s`  | Search term to query the portal           | ✅       | -           |
-| `--directory`   | `-d`  | Download directory path                   | ✅       | -           |
+| `--search`      | `-s`  | Search term to query the portal           | Yes      | -           |
+| `--directory`   | `-d`  | Download directory path                   | Yes      | -           |
 | `--page`        | `-p`  | Page number to download                   | -        | All pages   |
 | `--all`         | `-a`  | Download all pages from specified page    | -        | `false`     |
 | `--prefix`      | -     | Custom filename prefix (sequential mode)  | -        | Page number |
@@ -238,7 +255,7 @@ bun run start -i -s "your search term" -d ./downloads
 
 </details>
 
-## 🐳 Docker Usage
+## Docker Usage
 
 You can also run EF-DL using Docker without installing Bun or Node.js locally.
 
@@ -252,16 +269,12 @@ docker compose run -it --rm ef-dl
 docker compose run -it --rm ef-dl bun index.ts -s "your search term" -d ./downloads
 ```
 
-**⚠️ Important for Interactive Mode:** When running interactive mode in Docker, you **must** use the `-it` flags:
-
-- `-i` (interactive): Keep STDIN open
-- `-t` (tty): Allocate a pseudo-TTY for proper input handling
-
-Without these flags, keyboard input (including Enter/Return key) won't work properly in prompts.
-
 ### Docker Commands
 
 **Volume Binding:** Use `-v` to map a local directory to the container's download location. Downloads will be saved to your local machine.
+
+<details>
+<summary>Click to see all example commands</summary>
 
 ```bash
 # Build the image
@@ -284,14 +297,9 @@ docker build -f Dockerfile.production -t ef-dl:prod .
 docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl:prod
 ```
 
-### Development with Docker
+</details>
 
-```bash
-# Run with hot reload
-docker-compose --profile dev run --rm ef-dl-dev
-```
-
-## 🔄 Download Flow
+## Download Flow
 
 Parallel mode (default) uses a producer-consumer pipeline with a SQLite queue and worker pool. Use `--sequential` to run the legacy single-process flow.
 
@@ -355,7 +363,7 @@ flowchart TD
 
 </details>
 
-## 📁 File Organization
+## File Organization
 
 **JSON Metadata:** Automatically saved with search results, document metadata, URLs, file sizes, and excerpts.
 
@@ -399,7 +407,7 @@ flowchart TD
 
 </details>
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 **Core:** TypeScript, Bun/Node.js, Puppeteer for browser automation
 
@@ -427,7 +435,7 @@ flowchart TD
 
 </details>
 
-## 🔧 Development
+## Development
 
 <details>
 <summary>Scripts and project structure</summary>
@@ -471,7 +479,7 @@ ef-dl/
 
 </details>
 
-## ⚠️ Important Notes
+## Important Notes
 
 - **Age Requirement**: You must be 18+ to use this application
 - **Educational Use**: For educational purposes only
@@ -504,7 +512,7 @@ The tool checks both filename AND file size. If a file exists with a different s
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Please feel free to submit a Pull Request.
 
 ## License
 
