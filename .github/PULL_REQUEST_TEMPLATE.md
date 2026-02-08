@@ -39,8 +39,8 @@ Closes #(issue number)
 
 <!-- Describe the testing you've done -->
 
-- [ ] Tested locally with `bun run start`
-- [ ] Type checking passes (`bun run typecheck`)
+- [ ] Tested locally with `bun start`
+- [ ] Type checking passes (`bun typecheck`)
 - [ ] Tested in Docker container
 - [ ] Tested with sample data
 

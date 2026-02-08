@@ -8,12 +8,13 @@
   \/_____/   \/_/     \/____/   \/_____/
 ```
 
-> **DISCLAIMER**: This application is for **EDUCATIONAL PURPOSES ONLY**. By using this tool, you certify that you are 18 years of age or older and will use responsibly.
+> **DISCLAIMER**: This application is for **EDUCATIONAL PURPOSES ONLY**. By using this tool, you consent that you are 18 years of age or older and will use responsibly.
 
-Currently the DOJ search portal is very limited and requires a lot of manual intervention.
+Currently the DOJ search portal is very limited and requires a lot of manual intervention. EF-DL is designed to automate this process and remove the friction of downloading files.
 
-The aim of EF-DL is to help expedite the processing of the epstein files by automating downloads to enable the use of AI models to process the documents after.
-EF-DL is an interactive CLI tool for downloading the epstein files from the Epstein Files search portal. Automates the process of searching, downloading metadata, and downloading PDF files with support for pagination, prefixes, and deduplication.
+EF-DL is an interactive CLI tool that automates the process of downloading files with support for search term, parallel downloads (up to 10 workers), pagination, prefixes, deduplication and more.
+
+The aim of EF-DL is to help expedite the processing of the public epstein files by downloading live up-to-date files and ultimately enable batch postprocessing of the documents. (i.e. ai models to search through files).
 
 <div align="center">
 <img width="500"  alt="Image" src="https://github.com/user-attachments/assets/7f41da27-8311-4d2c-9c69-b0dd30e3e6a3" />
@@ -53,17 +54,18 @@ EF-DL is an interactive CLI tool for downloading the epstein files from the Epst
 
 ## Features
 
-- **Search Portal Integration**: Automatically searches justice.gov Epstein Files portal
-- **PDF Downloads**: Downloads PDFs with automatic deduplication based on filename and file size
+- **Live Up-To-Date Downloads**: Fetches the latest files directly from the DOJ portal in real-time (no reliance on outdated or torrented datasets)
+- **Search Portal Integration**: Download by search term from the justice.gov Epstein Files portal
+- **PDF Downloads**: Downloads Files/PDFs with automatic deduplication based on filename and file size
 - **Progress Tracking**: Visual progress bars for JSON fetching and PDF downloads
-- **Parallel Workers**: Multi-process downloads with a queue-backed resume system
+- **Parallel Workers**: Multi-process downloads with a queue-backed resume system (up to 10 parallel workers)
 - **Resume Support**: Restart interrupted runs from the queue state
-- **Custom Prefixes**: Add custom prefixes to PDF filenames or use page numbers automatically
+- **Prefix Modes**: Choose no prefix, page-number prefixes, or custom prefixes
 - **Smart Deduplication**: Detects existing files and skips/renames them appropriately
 - **Batch Processing**: Download single pages or all pages at once
 - **Interactive Mode**: Guided prompts for configuration (great for first-time users)
-- **Age Verification**: Built-in age verification for legal compliance
-- **Security Handling**: Automatically handles CAPTCHA and age verification challenges
+- **Age Verification**: Built-in age consent for legal compliance (By using this tool you verify you are 18+)
+- **Security Handling**: No manual intervention per download. Automatically handles CAPTCHA, age, and verification challenges
 
 ## Installation
 
@@ -84,7 +86,7 @@ Docker Images:
 ```bash
 # Option A: Using docker-compose (recommended)
 # Download & run docker-compose.yml
-curl -O https://raw.githubusercontent.com/iammorpheuszion/ef-dl/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/iammorpheuszion/epstein-files-downloader-cli-efdl/main/docker-compose.yml
 
 docker compose run -it --rm ef-dl
 ```
@@ -103,11 +105,11 @@ Install from npm using Bun:
 
 ```bash
 # Using bunx (no installation needed) - like npx but for Bun
-bunx ef-dl -s "your search term" -d ./downloads
+bunx ef-dl --age true -s "your search term" -d ./downloads
 
 # Or install globally with Bun
 bun install -g ef-dl
-ef-dl -s "your search term" -d ./downloads
+ef-dl --age true -s "your search term" -d ./downloads
 ```
 
 ### Option 3: Local Development
@@ -147,45 +149,48 @@ bun run typecheck
 Running without arguments automatically starts interactive mode:
 
 ```bash
-bun run start
+bun start --age true
 ```
 
 ### Interactive mode with pre-filled values
 
 ```bash
-bun run start -i -s "your search term" -p 5
+bun start --age true -i -s "your search term" -p 5
 ```
 
 ### Download all pages
 
 ```bash
-bun run start -s "your search term" -d ./downloads
+bun start --age true -s "your search term" -d ./downloads
 ```
 
 ### Download a specific page
 
 ```bash
-bun run start -s "your search term" -p 5 -d ./downloads
+bun start --age true -s "your search term" -p 5 -d ./downloads
 ```
 
 ## Usage
 
 ### Command Line Options
 
-| Flag            | Short | Description                               | Required | Default     |
-| --------------- | ----- | ----------------------------------------- | -------- | ----------- |
-| `--search`      | `-s`  | Search term to query the portal           | Yes      | -           |
-| `--directory`   | `-d`  | Download directory path                   | Yes      | -           |
-| `--page`        | `-p`  | Page number to download                   | -        | All pages   |
-| `--all`         | `-a`  | Download all pages from specified page    | -        | `false`     |
-| `--prefix`      | -     | Custom filename prefix (sequential mode)  | -        | Page number |
-| `--workers`     | -     | Number of parallel workers (1-10)         | -        | `5`         |
-| `--fresh`       | -     | Force fresh start, ignore resume          | -        | `false`     |
-| `--sequential`  | -     | Use sequential download (disable workers) | -        | `false`     |
-| `--verbose`     | `-v`  | Enable verbose debug output               | -        | `false`     |
-| `--interactive` | `-i`  | Interactive mode with prompts             | -        | `false`     |
-| `--help`        | `-h`  | Show help menu                            | -        | -           |
-| `--version`     | `-V`  | Show version number                       | -        | -           |
+| Flag            | Short | Description                               | Required | Default   |
+| --------------- | ----- | ----------------------------------------- | -------- | --------- |
+| `--age`         | -     | Confirm you are 18+ (true/false)          | No       | -         |
+| `--search`      | `-s`  | Search term to query the portal           | Yes      | -         |
+| `--directory`   | `-d`  | Download directory path                   | Yes      | -         |
+| `--page`        | `-p`  | Page number to download                   | -        | All pages |
+| `--all`         | `-a`  | Download all pages from specified page    | -        | `false`   |
+| `--prefix-mode` | -     | Prefix mode: none, page, custom           | -        | `none`    |
+| `--prefix`      | -     | Custom filename prefix (requires custom)  | -        | -         |
+| `--workers`     | `-w`  | Number of parallel workers (1-10)         | -        | `4`       |
+| `--cache`       | `-c`  | Keep cache for this search (true/false)   | -        | `false`   |
+| `--verbose`     | `-v`  | Enable verbose debug output               | -        | `false`   |
+| `--interactive` | `-i`  | Interactive mode with prompts             | -        | `false`   |
+| `--force`       | `-f`  | Force fresh start, ignore resume          | -        | `false`   |
+| `--sequential`  | -     | Use sequential download (disable workers) | -        | `false`   |
+| `--help`        | `-h`  | Show help menu                            | -        | -         |
+| `--version`     | `-V`  | Show version number                       | -        | -         |
 
 ### Interactive Mode
 
@@ -193,23 +198,86 @@ Interactive mode provides guided prompts for all configuration options. **Runnin
 
 ```bash
 # Start interactive mode (no arguments needed)
-bun run start
+bun start
 
 # Explicit interactive mode
-bun run start -i
+bun start -i
 
 # Interactive with pre-filled values
-bun run start -i -s "your search term"
+bun start -i --age true -s "your search term" -d ./downloads -p 1
 ```
 
 **Interactive prompts:**
 
-1. Search term
-2. Download directory
-3. Page number (leave empty for all pages)
-4. Download mode (single page or all from page)
-5. Custom prefix (leave empty for page number)
-6. Verbose mode (yes/no)
+1. Age confirmation
+2. Search term
+3. Download directory
+4. Page number (leave empty for all pages)
+5. Download mode (single page or all from page)
+6. Filename prefix (none, page number, or custom)
+7. Number of workers
+8. Verbose mode (yes/no)
+9. Cache cleanup (prompt after download)
+
+### Step-by-Step Prefill Examples
+
+Each command adds one more flag to prefill the interactive prompts:
+
+| Step | What it adds | Command |
+| ---- | ----------- | ------- |
+| 1 | Interactive mode | `bun start` |
+| 2 | Interactive mode (explicit) | `bun start -i` |
+| 3 | Prefill age check | `bun start --age true` |
+| 4 | Prefill search | `bun start --age true -s "your search term"` |
+| 5 | Prefill directory | `bun start --age true -s "your search term" -d ./downloads` |
+| 6 | Prefill cache (true = keep, false = delete) | `bun start --age true -s "your search term" -d ./downloads -c false` |
+| 7 | Prefill page (single page) | `bun start --age true -s "your search term" -d ./downloads -p 1` |
+| 8 | Prefill range (from page) | `bun start --age true -s "your search term" -d ./downloads -p 1 -a` |
+| 9 | Prefill prefix mode (page) | `bun start --age true -s "your search term" -d ./downloads --prefix-mode page` |
+| 10 | Prefill prefix mode (custom) | `bun start --age true -s "your search term" -d ./downloads --prefix-mode custom --prefix EPSTEIN` |
+| 11 | Prefill workers | `bun start --age true -s "your search term" -d ./downloads -w 10` |
+| 12 | Prefill verbose | `bun start --age true -s "your search term" -d ./downloads -v` |
+| 13 | Prefill force (fresh start) | `bun start --age true -s "your search term" -d ./downloads -f` |
+| 14 | Sequential mode | `bun start --age true -s "your search term" -d ./downloads --sequential` |
+
+### Non-Interactive Mode (No Prompts)
+
+If you want to bypass all prompts, pass the minimum required flags plus any optional flags you want to fix:
+
+**Minimum to avoid prompts**
+
+- `--age true` (skips the age prompt)
+- `-s, --search <term>`
+- `-d, --directory <path>` (unless `USE_DEFAULT_DIR=true`)
+- `-c, --cache <true|false>` (skips the cleanup prompt at the end)
+
+Example (uses defaults for workers, prefix mode, etc):
+
+```bash
+bun start --age true -s "your search term" -p 1 -d ./downloads -c false
+```
+
+What this does:
+
+- Skips the age prompt and starts immediately
+- Downloads page 1 only (no `-a`, so single page)
+- Uses default workers/prefix settings
+- Deletes the cache for that search term at the end (`-c false`)
+
+Example (customize more defaults):
+
+```bash
+bun start --age true -s "your search term" -p 1 -d ./downloads -w 10 -c true
+```
+
+What this does:
+
+- Uses 10 workers
+- Keeps the cache for resume (`-c true`)
+
+**Missing required flags = interactive fallback**
+
+If you omit required flags (like `-s` or `-d`), the CLI will fall back to interactive mode and prefill the prompts with any flags you did provide. You can then accept or change those values and supply the missing ones.
 
 ### Examples
 
@@ -217,40 +285,40 @@ bun run start -i -s "your search term"
 <summary>Click to see all example commands</summary>
 
 ```bash
-# Download all pages with parallel workers (default: 5)
-bun run start -s "your search term" -d ./downloads
+# Download all pages with parallel workers (default: 4)
+bun start --age true -s "your search term" -d ./downloads
 
 # Download with 10 parallel workers
-bun run start -s "your search term" -d ./downloads --workers 10
+bun start --age true -s "your search term" -d ./downloads --workers 10
 
 # Download with sequential mode (no parallelism)
-bun run start -s "your search term" -d ./downloads --sequential
+bun start --age true -s "your search term" -d ./downloads --sequential
 
 # Download only page 5
-bun run start -s "your search term" -p 5 -d ./downloads
+bun start --age true -s "your search term" -p 5 -d ./downloads
 
 # Download all pages starting from page 5
-bun run start -s "your search term" -p 5 -a -d ./downloads
+bun start --age true -s "your search term" -p 5 -a -d ./downloads
 
-# Download page 5 (uses page number as prefix: 5-filename.pdf)
-bun run start -s "your search term" -p 5 -d ./downloads
+# Download page 5 with page-number prefix
+bun start --age true -s "your search term" -p 5 -d ./downloads --prefix-mode page
 # Results in: 5-EFTA00000001.pdf
 
 # Download with custom prefix
-bun run start -s "your search term" -p 5 -d ./downloads --prefix EPSTEIN
+bun start --age true -s "your search term" -p 5 -d ./downloads --prefix-mode custom --prefix EPSTEIN
 # Results in: EPSTEIN-EFTA00000001.pdf
 
 # Download with verbose output
-bun run start -s "your search term" -d ./downloads -v
+bun start --age true -s "your search term" -d ./downloads -v
 
 # Force fresh start (ignore previous resume)
-bun run start -s "your search term" -d ./downloads --fresh
+bun start --age true -s "your search term" -d ./downloads --force
 
 # Interactive mode (prompts for all options)
-bun run start -i
+bun start --age true -i
 
 # Interactive mode with pre-filled values
-bun run start -i -s "your search term" -d ./downloads
+bun start --age true -i -s "your search term" -d ./downloads
 ```
 
 </details>
@@ -263,10 +331,10 @@ You can also run EF-DL using Docker without installing Bun or Node.js locally.
 
 ```bash
 # Run in interactive mode
-docker compose run -it --rm ef-dl
+docker compose run -it --rm ef-dl --age true
 
 # Download specific search term
-docker compose run -it --rm ef-dl bun index.ts -s "your search term" -d ./downloads
+docker compose run -it --rm ef-dl bun index.ts --age true -s "your search term" -d ./downloads
 ```
 
 ### Docker Commands
@@ -281,20 +349,20 @@ docker compose run -it --rm ef-dl bun index.ts -s "your search term" -d ./downlo
 docker build -t ef-dl .
 
 # Run interactively - downloads go to ./downloads on your machine
-docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl
+docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl --age true
 
 # Run with arguments - save to current directory
-docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl bun index.ts -s "your_search_term" -d ./downloads
+docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl bun index.ts --age true -s "your_search_term" -d ./downloads
 
 # Custom download location - use absolute path
-docker run -it --rm -v /path/to/your/downloads:/app/downloads ef-dl bun index.ts -s "your_search_term" -d ./downloads
+docker run -it --rm -v /path/to/your/downloads:/app/downloads ef-dl bun index.ts --age true -s "your_search_term" -d ./downloads
 
 # Windows users (PowerShell)
-docker run -it --rm -v ${PWD}/downloads:/app/downloads ef-dl
+docker run -it --rm -v ${PWD}/downloads:/app/downloads ef-dl --age true
 
 # Use production-optimized image
 docker build -f Dockerfile.production -t ef-dl:prod .
-docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl:prod
+docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl:prod --age true
 ```
 
 </details>
@@ -302,6 +370,7 @@ docker run -it --rm -v $(pwd)/downloads:/app/downloads ef-dl:prod
 ## Download Flow
 
 Parallel mode (default) uses a producer-consumer pipeline with a SQLite queue and worker pool. Use `--sequential` to run the legacy single-process flow.
+The coordinator runs in the main process; the worker count only controls the number of worker processes (total processes = 1 coordinator + N workers).
 
 <details>
 <summary>View detailed flow diagram</summary>
@@ -309,7 +378,7 @@ Parallel mode (default) uses a producer-consumer pipeline with a SQLite queue an
 ```mermaid
 flowchart TD
     A[Start CLI] --> B{Resume check}
-    B -->|No queue or --fresh| C[Initialize queue DB + cache]
+    B -->|No queue or --force| C[Initialize queue DB + cache]
     B -->|Queue exists| D[Show resume prompt]
     D -->|Resume| E[Reset in-progress -> pending]
     D -->|Fresh| C
@@ -367,7 +436,7 @@ flowchart TD
 
 **JSON Metadata:** Automatically saved with search results, document metadata, URLs, file sizes, and excerpts.
 
-**PDF Files:** Prefixed with page number by default (e.g., `5-filename.pdf`). Custom prefixes supported in sequential mode. Duplicate detection based on filename AND file size.
+**PDF Files:** Prefix mode defaults to none (e.g., `filename.pdf`). Use `--prefix-mode page` or `--prefix-mode custom` to add prefixes. Duplicate detection based on filename AND file size.
 
 <details>
 <summary>View directory structures</summary>
@@ -385,8 +454,8 @@ flowchart TD
 │       └── {search-term}.db
 └── files/
   └── {search-term}/
-    ├── {page}-EFTA00000001.pdf
-    ├── {page}-EFTA00000002.pdf
+    ├── {page}-EFTA00000001.pdf (when using --prefix-mode page)
+    ├── {page}-EFTA00000002.pdf (when using --prefix-mode page)
     └── ...
 ```
 

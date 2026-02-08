@@ -1,7 +1,7 @@
 {
   "name": "ef-dl",
-  "version": "1.0.0",
-  "description": "Educational tool to download files from the US DOJ Epstein Files search portal (Bun runtime required)",
+  "version": "1.0.1",
+  "description": "Epstein file downloader tool to download live files from the US DOJ Epstein Files search portal (Bun runtime required)",
   "module": "index.ts",
   "type": "module",
   "bin": {
@@ -42,12 +42,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/iammorpheuszion/ef-dl.git"
+    "url": "https://github.com/iammorpheuszion/epstein-files-downloader-cli-efdl.git"
   },
   "bugs": {
-    "url": "https://github.com/iammorpheuszion/ef-dl/issues"
+    "url": "https://github.com/iammorpheuszion/epstein-files-downloader-cli-efdl/issues"
   },
-  "homepage": "https://github.com/iammorpheuszion/ef-dl",
+  "homepage": "https://github.com/iammorpheuszion/epstein-files-downloader-cli-efdl",
   "devDependencies": {
     "@types/bun": "latest",
     "@types/figlet": "^1.7.0",
@@ -60,6 +60,6 @@
     "commander": "^14.0.3",
     "figlet": "^1.10.0",
     "multi-progress-bars": "^5.0.3",
-    "puppeteer": "^24.36.1"
+    "puppeteer": "^24.37.2"
   }
 }

@@ -1,5 +1,5 @@
 ---
-name: 🐛 Bug Report
+name: Bug Report
 about: A glitch in the matrix
 title: "[BUG] "
 labels: ["bug", "triage"]

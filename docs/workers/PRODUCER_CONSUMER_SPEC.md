@@ -17,41 +17,41 @@ This document specifies the technical implementation of the parallel download sy
 │  │ Coordinator  │  (Main Process)                               │
 │  │  (Producer)  │                                               │
 │  └──────┬───────┘                                               │
-│         │                                                        │
-│         │  1. Fetches JSON metadata                              │
-│         │  2. Inserts PDF tasks into queue                       │
-│         │  3. Signals completion                                 │
-│         │                                                        │
-│         ▼                                                        │
+│         │                                                       │
+│         │  1. Fetches JSON metadata                             │
+│         │  2. Inserts PDF tasks into queue                      │
+│         │  3. Signals completion                                │
+│         │                                                       │
+│         ▼                                                       │
 │  ┌─────────────────────────┐                                    │
 │  │    SQLite Task Queue    │                                    │
 │  │  {search-term}.db       │                                    │
 │  │                         │                                    │
 │  │  ┌───────────────────┐  │                                    │
-│  │  │ pdf_tasks table   │  │  Status: 0=pending               │
-│  │  │ - search_term     │  │          1=in_progress           │
-│  │  │ - page_number     │  │          2=completed             │
-│  │  │ - pdf_name        │  │          3=failed                │
+│  │  │ pdf_tasks table   │  │  Status: 0=pending                 │
+│  │  │ - search_term     │  │          1=in_progress             │
+│  │  │ - page_number     │  │          2=completed               │
+│  │  │ - pdf_name        │  │          3=failed                  │
 │  │  │ - pdf_url         │  │                                    │
 │  │  │ - file_size       │  │                                    │
 │  │  │ - status          │  │                                    │
 │  │  └───────────────────┘  │                                    │
 │  └──────────┬──────────────┘                                    │
-│             │                                                    │
-│     ┌───────┼───────┐                                            │
-│     │       │       │                                            │
-│     ▼       ▼       ▼                                            │
-│  ┌────┐  ┌────┐  ┌────┐                                        │
-│  │ W1 │  │ W2 │  │ W3 │  ... Workers (1-10, default 5)        │
-│  └──┬─┘  └──┬─┘  └──┬─┘                                        │
-│     │       │       │                                            │
-│     │       │       │  Claim PDF tasks (atomic)                │
-│     │       │       │  Download PDFs                           │
-│     │       │       │  Mark complete/failed                    │
-│     │       │       │                                            │
-│     └───────┴───────┘                                            │
-│             │                                                    │
-│             ▼                                                    │
+│             │                                                   │
+│     ┌───────┼───────┐                                           │
+│     │       │       │                                           │
+│     ▼       ▼       ▼                                           │
+│  ┌────┐  ┌────┐  ┌────┐                                         │
+│  │ W1 │  │ W2 │  │ W3 │  ... Workers (1-10, default 4)          │
+│  └──┬─┘  └──┬─┘  └──┬─┘                                         │
+│     │       │       │                                           │
+│     │       │       │  Claim PDF tasks (atomic)                 │
+│     │       │       │  Download PDFs                            │
+│     │       │       │  Mark complete/failed                     │
+│     │       │       │                                           │
+│     └───────┴───────┘                                           │
+│             │                                                   │
+│             ▼                                                   │
 │  ┌─────────────────────────┐                                    │
 │  │ Downloaded PDFs         │                                    │
 │  │ {downloadDir}/files/    │                                    │
@@ -67,6 +67,7 @@ This document specifies the technical implementation of the parallel download sy
 - **Granularity**: Each PDF is an individual task in the queue
 - **Resumable**: SQLite queue persists across interruptions
 - **Scalable**: 1-10 workers configurable
+- **Filename Prefix Modes**: none, page, custom (custom requires --prefix)
 
 ## Components
 
@@ -120,6 +121,9 @@ interface CoordinatorOptions {
   workers?: number;
   fresh?: boolean; // Force fresh start, ignore resume
   verbose?: boolean;
+  prefixMode?: "none" | "page" | "custom";
+  customPrefix?: string;
+  cache?: boolean;
 }
 
 interface CoordinatorResult {
@@ -159,6 +163,8 @@ export class WorkerPool {
 
 interface WorkerPoolOptions {
   verbose?: boolean;
+  prefixMode?: "none" | "page" | "custom";
+  customPrefix?: string;
 }
 
 interface WorkerPoolResult {
@@ -208,6 +214,8 @@ export async function runWorker(
 interface WorkerOptions {
   downloadDir: string;
   verbose?: boolean;
+  prefixMode?: "none" | "page" | "custom";
+  customPrefix?: string;
 }
 
 interface WorkerResult {
@@ -592,7 +600,7 @@ WHERE status = 1;
 **Queue Database Errors:**
 
 - Fatal: Exit with error message
-- User can retry with `--fresh` flag
+- User can retry with `--force` flag
 
 ## File Structure
 
@@ -636,32 +644,42 @@ WHERE status = 1;
 
 ```typescript
 program
-  .option('--workers <number>', 'Number of parallel workers (1-10, default 5)', '5')
-  .option('--fresh', 'Force fresh start, ignore resume', false)
+  .option('--age <boolean>', 'Confirm you are 18+ (true/false)')
+  .option('-w, --workers <number>', 'Number of parallel workers (1-10, default 4)', '4')
+  .option('-c, --cache <boolean>', 'Keep cache for this search (true/false)')
+  .option('--prefix-mode <mode>', 'Prefix mode: none, page, custom (default: none)')
+  .option('--prefix <string>', 'Custom prefix for PDF filenames (requires --prefix-mode custom)')
+  .option('-f, --force', 'Force fresh start, ignore resume', false)
   .option('--sequential', 'Use sequential download (no parallel)', false);
 ````
 
 ### Usage Examples
 
 ```bash
-# Default: 5 workers, auto-detect resume
-bun index.ts -s "{search_term}" -d ./downloads
+# Default: 4 workers, auto-detect resume
+bun index.ts --age true -s "{search_term}" -d ./downloads
 
 # Custom worker count
-bun index.ts -s "{search_term}" -d ./downloads --workers 10
-bun index.ts -s "{search_term}" -d ./downloads --workers 3
+bun index.ts --age true -s "{search_term}" -d ./downloads --workers 10
+bun index.ts --age true -s "{search_term}" -d ./downloads --workers 3
+
+# Page-number prefix
+bun index.ts --age true -s "{search_term}" -d ./downloads --prefix-mode page
+
+# Custom prefix
+bun index.ts --age true -s "{search_term}" -d ./downloads --prefix-mode custom --prefix EPSTEIN
 
 # Single page (still uses parallel for PDFs within page)
-bun index.ts -s "{search_term}" -p 5 -d ./downloads
+bun index.ts --age true -s "{search_term}" -p 5 -d ./downloads
 
 # Force fresh start (ignore resume)
-bun index.ts -s "{search_term}" -d ./downloads --fresh
+bun index.ts --age true -s "{search_term}" -d ./downloads --force
 
 # Fallback to sequential
-bun index.ts -s "{search_term}" -d ./downloads --sequential
+bun index.ts --age true -s "{search_term}" -d ./downloads --sequential
 
 # Verbose mode (see worker activity)
-bun index.ts -s "{search_term}" -d ./downloads -v
+bun index.ts --age true -s "{search_term}" -d ./downloads -v
 ```
 
 ## Implementation Phases
@@ -688,7 +706,7 @@ bun index.ts -s "{search_term}" -d ./downloads -v
 
 ### Phase 4: Integration
 
-1. Add CLI flags (`--workers`, `--fresh`)
+1. Add CLI flags (`--workers`, `--force`)
 2. Create wrapper in `index.ts` to choose parallel vs sequential
 3. Update progress bars to show queue-based PDF progress
 4. Add cleanup prompt
@@ -837,7 +855,7 @@ Default: Yes if all downloads completed, No if incomplete (y/N):
 - [ ] Single page download with 5 workers
 - [ ] Multi-page download (10+ pages) with 5 workers
 - [ ] Resume from partial download
-- [ ] Fresh start with `--fresh` flag
+- [ ] Fresh start with `--force` flag
 - [ ] Worker crash recovery
 - [ ] Network error retry logic
 - [ ] Progress bar accuracy

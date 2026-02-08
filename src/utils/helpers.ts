@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import fs from "fs";
 import path from "path";
-import { PromptType } from "../types/enums";
+import { PromptType, type PrefixMode } from "../types/enums";
 import { JUSTICE_GOV_SEARCH_URL } from "../types/constants";
 import { getAsciiArt } from "./ascii.js";
 import { closeBrowser, fetchPageContent } from "../browserless/browser-client";
@@ -95,7 +95,9 @@ export async function fetchSearchResults(
   return { jsonData, jsonFilePath: jsonFilePath! };
 }
 
-export async function showDisclaimerAndVerifyAge(): Promise<void> {
+export async function showDisclaimerAndVerifyAge(
+  ageCheckOverride?: boolean,
+): Promise<void> {
   console.log(
     chalk.yellow(
       "\n╔════════════════════════════════════════════════════════════╗",
@@ -137,6 +139,19 @@ export async function showDisclaimerAndVerifyAge(): Promise<void> {
     ),
   );
 
+  if (ageCheckOverride === false) {
+    console.log(
+      chalk.red("\n✖ You must be 18 years or older to use this application."),
+    );
+    console.log(chalk.red("Exiting...\n"));
+    process.exit(1);
+  }
+
+  if (ageCheckOverride === true) {
+    console.log(chalk.green("\n✓ Age verified via --age. Proceeding...\n"));
+    return;
+  }
+
   const ageVerification = await prompt({
     type: PromptType.Select,
     message: "Are you 18 years of age or older?",
@@ -177,8 +192,8 @@ export function showConfiguration(
   startPage: number,
   isPageExplicitlySet: boolean,
   allFlag: boolean,
-  effectivePrefix: string,
-  hasCustomPrefix: boolean,
+  prefixMode: PrefixMode,
+  customPrefix: string | undefined,
   isVerbose: boolean,
   useParallel: boolean,
   workers: number,
@@ -198,10 +213,12 @@ export function showConfiguration(
   }
 
   console.log(chalk.white(`  Directory: ${baseDirectory}`));
-  if (hasCustomPrefix) {
-    console.log(chalk.white(`  Prefix: ${effectivePrefix} (custom)`));
+  if (prefixMode === "custom") {
+    console.log(chalk.white(`  Prefix: ${customPrefix} (custom)`));
+  } else if (prefixMode === "page") {
+    console.log(chalk.white(`  Prefix: page number`));
   } else {
-    console.log(chalk.white(`  Prefix: ${effectivePrefix} (page number)`));
+    console.log(chalk.white(`  Prefix: none`));
   }
 
   if (useParallel) {
@@ -216,8 +233,29 @@ export function showConfiguration(
 export async function promptForCleanup(
   baseDirectory: string,
   searchTerm: string,
+  cacheOverride?: boolean,
 ): Promise<void> {
   console.log("");
+  if (cacheOverride !== undefined) {
+    if (cacheOverride) {
+      console.log(chalk.gray("Cache preserved for potential resume"));
+      return;
+    }
+    const jsonDir = path.join(baseDirectory, searchTerm, "json");
+    if (fs.existsSync(jsonDir)) {
+      try {
+        fs.rmSync(jsonDir, { recursive: true, force: true });
+        console.log(chalk.green(`✓ Cleaned up JSON directory: ${jsonDir}`));
+      } catch (error: any) {
+        console.error(
+          chalk.red(`Failed to clean up JSON directory: ${error.message}`),
+        );
+      }
+    } else {
+      console.log(chalk.yellow(`JSON directory not found: ${jsonDir}`));
+    }
+    return;
+  }
   const cleanupChoice = await prompt({
     type: PromptType.Select,
     message: "Would you like to clean up JSON files?",

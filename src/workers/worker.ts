@@ -19,10 +19,13 @@ import { downloadPdf } from "../browserless/browser-client.js";
 import type { WorkerOptions, WorkerResult } from "./types.js";
 import chalk from "chalk";
 import { logger, setVerboseMode } from "../utils/logger";
+import type { PrefixMode } from "../types/enums.js";
 
 function isDatabaseLocked(error: unknown): boolean {
   return error instanceof Error && /database is locked/i.test(error.message);
 }
+
+const PREFIX_MODES: PrefixMode[] = ["none", "page", "custom"];
 
 async function withDbLockRetry<T>(
   workerId: string,
@@ -63,6 +66,8 @@ async function runWorker(
   downloadDir: string,
   workerId: string,
   verbose: boolean,
+  prefixMode: PrefixMode,
+  customPrefix?: string,
 ): Promise<WorkerResult> {
   setVerboseMode(verbose);
   logger.debug(chalk.gray(`[${workerId}] Initializing...`));
@@ -141,12 +146,14 @@ async function runWorker(
           // Download PDF
           const pdfOutputDir = path.join(downloadDir, "files", searchTerm);
 
-          await downloadPdf(
-            pdf.pdfUrl,
-            pdfOutputDir,
-            pdf.pdfName,
-            String(pdf.pageNumber),
-          );
+          const prefix =
+            prefixMode === "custom"
+              ? customPrefix
+              : prefixMode === "page"
+                ? String(pdf.pageNumber)
+                : undefined;
+
+          await downloadPdf(pdf.pdfUrl, pdfOutputDir, pdf.pdfName, prefix);
 
           success = true;
           consecutiveErrors = 0;
@@ -241,6 +248,8 @@ if (import.meta.main) {
       search: { type: "string", short: "s" },
       directory: { type: "string", short: "d" },
       "worker-id": { type: "string", default: "worker-1" },
+      "prefix-mode": { type: "string", default: "page" },
+      prefix: { type: "string" },
       verbose: { type: "boolean", short: "v", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -259,6 +268,8 @@ Options:
   -s, --search <term>      Search term (required)
   -d, --directory <path>   Download directory (required)
   --worker-id <id>         Worker identifier for logging
+  --prefix-mode <mode>     Prefix mode (none, page, custom)
+  --prefix <string>        Custom prefix (requires --prefix-mode custom)
   -v, --verbose           Enable verbose output
   -h, --help              Show this help message
 `);
@@ -274,9 +285,32 @@ Options:
   const downloadDir = values.directory;
   const workerId = values["worker-id"] || "worker-1";
   const verbose = values.verbose || false;
+  const prefixMode = (values["prefix-mode"] || "page") as PrefixMode;
+  const customPrefix = values.prefix;
+
+  if (!PREFIX_MODES.includes(prefixMode)) {
+    logger.error(
+      chalk.red("Error: --prefix-mode must be one of: none, page, custom"),
+    );
+    process.exit(1);
+  }
+
+  if (prefixMode === "custom" && !customPrefix) {
+    logger.error(
+      chalk.red("Error: --prefix is required when --prefix-mode is custom"),
+    );
+    process.exit(1);
+  }
   setVerboseMode(verbose);
 
-  runWorker(searchTerm, downloadDir, workerId, verbose)
+  runWorker(
+    searchTerm,
+    downloadDir,
+    workerId,
+    verbose,
+    prefixMode,
+    customPrefix,
+  )
     .then((result) => {
       // Exit with error code if any PDFs failed
       process.exit(result.pdfsFailed > 0 ? 1 : 0);

@@ -3,6 +3,8 @@
  * Producer-Consumer Pipeline Architecture
  */
 
+import type { PrefixMode } from "../types/enums.js";
+
 /**
  * Represents a single PDF task in the queue
  */
@@ -57,6 +59,9 @@ export interface CoordinatorOptions {
   workers?: number;
   fresh?: boolean;
   verbose?: boolean;
+  prefixMode?: PrefixMode;
+  customPrefix?: string;
+  cache?: boolean;
 }
 
 /**
@@ -77,6 +82,8 @@ export interface CoordinatorResult {
 export interface WorkerPoolOptions {
   verbose?: boolean;
   onProgress?: (progress: QueueProgress) => void;
+  prefixMode?: PrefixMode;
+  customPrefix?: string;
 }
 
 /**
@@ -94,6 +101,8 @@ export interface WorkerPoolResult {
 export interface WorkerOptions {
   downloadDir: string;
   verbose?: boolean;
+  prefixMode?: PrefixMode;
+  customPrefix?: string;
 }
 
 /**

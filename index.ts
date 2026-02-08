@@ -30,7 +30,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import fs from "fs";
 import path from "path";
-import { PromptType } from "./src/types/enums";
+import { PromptType, type PrefixMode } from "./src/types/enums";
 import { downloadPdf, closeBrowser } from "./src/browserless/browser-client";
 import {
   installConsoleBridge,
@@ -69,6 +69,99 @@ const packageJson = JSON.parse(fs.readFileSync("./package.json", "utf-8"));
 const VERSION = packageJson.version;
 const USE_DEFAULT_DIR = process.env.USE_DEFAULT_DIR === "true";
 const DEFAULT_DOWNLOAD_DIR = "./downloads";
+const PREFIX_MODES: PrefixMode[] = ["none", "page", "custom"];
+
+function parseAgeCheck(value: unknown): boolean | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+    if (["true", "1", "yes", "y"].includes(normalized)) {
+      return true;
+    }
+    if (["false", "0", "no", "n"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  console.error(chalk.red("Error: --age must be true or false"));
+  process.exit(1);
+}
+
+function parseCacheFlag(value: unknown): boolean | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+    if (["true", "1", "yes", "y"].includes(normalized)) {
+      return true;
+    }
+    if (["false", "0", "no", "n"].includes(normalized)) {
+      return false;
+    }
+  }
+
+  console.error(chalk.red("Error: --cache must be true or false"));
+  process.exit(1);
+}
+
+function normalizePrefixMode(
+  value: string | undefined,
+  fallback: PrefixMode,
+): PrefixMode {
+  if (!value) {
+    return fallback;
+  }
+
+  const normalized = value.toLowerCase() as PrefixMode;
+  if (!PREFIX_MODES.includes(normalized)) {
+    console.error(
+      chalk.red("Error: --prefix-mode must be one of: none, page, custom"),
+    );
+    process.exit(1);
+  }
+
+  return normalized;
+}
+
+function getDefaultPrefixMode(
+  prefixMode: string | undefined,
+  customPrefix: string | undefined,
+): PrefixMode {
+  if (prefixMode) {
+    return normalizePrefixMode(prefixMode, "none");
+  }
+  if (customPrefix) {
+    return "custom";
+  }
+  return "none";
+}
+
+function getPrefixForPage(
+  prefixMode: PrefixMode,
+  customPrefix: string | undefined,
+  page: number,
+): string | undefined {
+  if (prefixMode === "custom") {
+    return customPrefix;
+  }
+  if (prefixMode === "page") {
+    return String(page);
+  }
+  return undefined;
+}
 
 /** Commander.js program instance */
 const program = new Command();
@@ -85,7 +178,7 @@ installConsoleBridge();
  * Features:
  * - Checks for existing files by filename AND size to prevent duplicates
  * - Renames existing files if prefix doesn't match current preference
- * - Applies custom prefix or defaults to page number
+ * - Applies prefix based on selected prefix mode
  * - Tracks download progress via callback
  * - Respects rate limits with delays between downloads
  *
@@ -93,7 +186,7 @@ installConsoleBridge();
  * @param searchTerm - The search query (for directory structure)
  * @param baseDirectory - Base download directory
  * @param pageNumber - Current page number (used for default prefix)
- * @param prefix - Custom prefix or page number as string
+ * @param prefix - Resolved prefix for this page (if any)
  * @param onProgress - Optional callback for progress updates
  * @returns Success and failure counts
  */
@@ -207,7 +300,11 @@ async function downloadAllPagesWorkflow(
   searchTerm: string,
   baseDirectory: string,
   startPage: number,
-  options: { prefix?: string; verbose: boolean },
+  options: {
+    prefixMode: PrefixMode;
+    customPrefix?: string;
+    verbose: boolean;
+  },
 ): Promise<void> {
   // Fetch first page to get total results count
   const { jsonData: firstPageData } = await fetchSearchResults(
@@ -280,7 +377,11 @@ async function downloadAllPagesWorkflow(
 
     try {
       // Calculate prefix for this specific page
-      const pagePrefix = options.prefix || String(page);
+      const pagePrefix = getPrefixForPage(
+        options.prefixMode,
+        options.customPrefix,
+        page,
+      );
 
       const { successCount, failCount } = await downloadPdfsFromJson(
         jsonData,
@@ -333,7 +434,8 @@ async function downloadSinglePageWorkflow(
   searchTerm: string,
   baseDirectory: string,
   pageNumber: number,
-  effectivePrefix: string,
+  prefixMode: PrefixMode,
+  customPrefix?: string,
 ): Promise<void> {
   console.log(chalk.cyan(`\nDownload Mode: Single Page (${pageNumber})`));
   console.log(chalk.gray(`\nFetching JSON data to count PDFs...\n`));
@@ -364,7 +466,7 @@ async function downloadSinglePageWorkflow(
     searchTerm,
     baseDirectory,
     pageNumber,
-    effectivePrefix,
+    getPrefixForPage(prefixMode, customPrefix, pageNumber),
     (_current: number, _total: number) => {
       currentPdfCount++;
       updatePdfProgress("PDF Downloads", currentPdfCount, actualPdfCount);
@@ -404,6 +506,7 @@ async function runInteractiveMode(initialOptions: {
   page?: string;
   all?: boolean;
   prefix?: string;
+  prefixMode?: string;
   verbose?: boolean;
   workers?: string;
 }): Promise<{
@@ -412,8 +515,8 @@ async function runInteractiveMode(initialOptions: {
   pageNum: number;
   isPageExplicitlySet: boolean;
   allFlag: boolean;
-  effectivePrefix: string;
-  hasCustomPrefix: boolean;
+  prefixMode: PrefixMode;
+  customPrefix?: string;
   isVerbose: boolean;
   workers: number;
   endPage?: number;
@@ -480,20 +583,44 @@ async function runInteractiveMode(initialOptions: {
   }
 
   // Custom prefix prompt
-  const customPrefix: string = await prompt({
-    type: PromptType.Input,
-    message: "Custom prefix for filenames (leave empty to use page number):",
-    default: initialOptions.prefix || "",
+  const defaultPrefixMode = getDefaultPrefixMode(
+    initialOptions.prefixMode,
+    initialOptions.prefix,
+  );
+
+  const prefixMode: PrefixMode = await prompt({
+    type: PromptType.Select,
+    message: "Filename prefix:",
+    choices: [
+      { name: "None", value: "none" },
+      { name: "Page Number", value: "page" },
+      { name: "Custom", value: "custom" },
+    ],
+    default: defaultPrefixMode,
     cleanup: cleanupAfterPromptExit,
   });
-  const hasCustomPrefix = customPrefix.trim() !== "";
-  const effectivePrefix = hasCustomPrefix ? customPrefix : String(pageNum);
+
+  let customPrefix: string | undefined;
+  if (prefixMode === "custom") {
+    customPrefix = await prompt({
+      type: PromptType.Input,
+      message: "Custom prefix text:",
+      default: initialOptions.prefix || "",
+      validate: (value) => {
+        if (!value || value.trim() === "") {
+          return "Custom prefix cannot be empty";
+        }
+        return true;
+      },
+      cleanup: cleanupAfterPromptExit,
+    });
+  }
 
   // Parallel workers
   const workersInput: string = await prompt({
     type: PromptType.Input,
     message: "Number of parallel workers (slowest 1-10 fastest):",
-    default: initialOptions.workers || "5",
+    default: initialOptions.workers || "4",
     validate: (value) => {
       const num = parseInt(value, 10);
       if (isNaN(num) || num < 1 || num > 10) {
@@ -503,7 +630,7 @@ async function runInteractiveMode(initialOptions: {
     },
     cleanup: cleanupAfterPromptExit,
   });
-  const workers = parseInt(workersInput, 10) || 5;
+  const workers = parseInt(workersInput, 10) || 4;
 
   // Verbose mode
   const isVerbose: boolean = await prompt({
@@ -522,8 +649,8 @@ async function runInteractiveMode(initialOptions: {
     pageNum,
     isPageExplicitlySet,
     allFlag,
-    effectivePrefix,
-    hasCustomPrefix,
+    prefixMode,
+    customPrefix,
     isVerbose,
     workers,
     endPage,
@@ -546,7 +673,9 @@ async function main(): Promise<void> {
     .name("ef-dl")
     .description("CLI to download Epstein files from justice.gov")
     .version(VERSION)
+    .option("--age <boolean>", "Confirm you are 18+ (true/false)")
     .option("-s, --search <term>", "Search term (required)")
+    .option("-d, --directory <path>", "Download directory (Required)")
     .option(
       "-p, --page <number>",
       "Page number to download (if not specified, downloads all pages starting from page 1)",
@@ -556,23 +685,23 @@ async function main(): Promise<void> {
       "Download all pages from the specified page number (requires -p). If -p is not set, this is automatically enabled.",
       false,
     )
-    .option("-d, --directory <path>", "Download directory (Required)")
+    .option(
+      "--prefix-mode <mode>",
+      "Prefix mode: none, page, custom (default: none)",
+    )
     .option(
       "--prefix <string>",
-      "Custom prefix for PDF filenames. If not provided, page number is used (e.g., page 7 creates '7-filename.pdf')",
+      "Custom prefix for PDF filenames (requires --prefix-mode custom)",
     )
+    .option("-w, --workers <number>", "Number of parallel workers (1-10)", "4")
+    .option("-c, --cache <boolean>", "Keep cache for this search (true/false)")
     .option("-v, --verbose", "Show verbose debug output", false)
     .option(
       "-i, --interactive",
       "Interactive mode: prompt for all options (flags provided will be pre-filled)",
       false,
     )
-    .option(
-      "--workers <number>",
-      "Number of parallel workers (1-10, default: 5)",
-      "5",
-    )
-    .option("--fresh", "Force fresh start, ignore resume", false)
+    .option("-f, --force", "Force fresh start, ignore resume", false)
     .option("--sequential", "Use sequential download (no parallel)", false)
     .configureHelp({
       sortSubcommands: true,
@@ -581,22 +710,24 @@ async function main(): Promise<void> {
     .addHelpText(
       "after",
       `
-    Notes:
-    - If -p is not specified, the tool will download ALL pages by default
-    - Parallel downloads use 5 workers by default (configurable with --workers)
-    - Use --sequential to disable parallel downloads
-    - Use --fresh to ignore previous download and start fresh
-    - Use -p without -a to download a single specific page
-    - Use -p with -a to download from that page to the end
-    - Use -i for interactive mode to configure all options via prompts
-    - In interactive mode, any flags provided will be pre-filled as defaults
-    - PDF filenames include page number as prefix by default (e.g., '7-filename.pdf')
-    - Use --prefix to override with a custom prefix (e.g., --prefix EPSTEIN)
-    - Existing files are detected by filename AND size to prevent duplicates
-    - Existing files will be renamed if prefix doesn't match current preference
-    - JSON metadata files are saved in {directory}/cache/{search-term}/json/
-    - PDF files are saved in {directory}/files/{search-term}/
-    - Queue database is saved in {directory}/cache/{search-term}/{search-term}.db
+    Examples (each flag added step-by-step):
+    - Interactive mode: bun start
+    - Interactive mode (explicit): bun start -i
+    - Prefill age check: bun start --age true
+    - Prefill search: bun start --age true -s "your search term"
+    - Prefill directory: bun start --age true -s "your search term" -d ./downloads
+    - Prefill cache: bun start --age true -s "your search term" -d ./downloads -c false
+    - Prefill page (single page): bun start --age true -s "your search term" -d ./downloads -p 1
+    - Prefill range (from page): bun start --age true -s "your search term" -d ./downloads -p 1 -a
+    - Prefill prefix mode (page): bun start --age true -s "your search term" -d ./downloads --prefix-mode page
+    - Prefill prefix mode (custom): bun start --age true -s "your search term" -d ./downloads --prefix-mode custom --prefix EPSTEIN
+    - Prefill workers: bun start --age true -s "your search term" -d ./downloads -w 10
+    - Prefill verbose: bun start --age true -s "your search term" -d ./downloads -v
+    - Prefill force: bun start --age true -s "your search term" -d ./downloads -f
+    - Sequential mode: bun start --age true -s "your search term" -d ./downloads --sequential
+    - Cache: JSON metadata in {downloads_directory}/cache/{search-term}/json/
+    - Queue DB: {downloads_directory}/cache/{search-term}/{search-term}.db
+    - Files: {downloads_directory}/files/{search-term}/
       `,
     )
     .parse();
@@ -605,6 +736,8 @@ async function main(): Promise<void> {
   // Parse Options Early
   // -------------------------------------------------------------------------
   const options = program.opts();
+  const ageCheck = parseAgeCheck(options.age);
+  const cacheOverride = parseCacheFlag(options.cache);
 
   // -------------------------------------------------------------------------
   // Setup Signal Handlers for Graceful Interruption
@@ -677,7 +810,14 @@ async function main(): Promise<void> {
   // Check for Interactive Mode or No Arguments
   // -------------------------------------------------------------------------
   // If no arguments provided, default to interactive mode
-  const isInteractiveMode = options.interactive || process.argv.length <= 2;
+  const missingRequiredSearch = !options.search;
+  const missingRequiredDirectory = !options.directory && !USE_DEFAULT_DIR;
+  const shouldFallbackToInteractive =
+    missingRequiredSearch || missingRequiredDirectory;
+  const isInteractiveMode =
+    options.interactive ||
+    process.argv.length <= 2 ||
+    shouldFallbackToInteractive;
 
   let searchTerm: string;
   let baseDirectory: string;
@@ -686,8 +826,8 @@ async function main(): Promise<void> {
   let endPage: number | undefined;
   let isPageExplicitlySet: boolean;
   let allFlag: boolean;
-  let effectivePrefix: string;
-  let hasCustomPrefix: boolean;
+  let prefixMode: PrefixMode;
+  let customPrefix: string | undefined;
   let isVerbose: boolean;
   let downloadAllPages: boolean;
   let workers: number;
@@ -697,7 +837,7 @@ async function main(): Promise<void> {
     showHeader(VERSION);
 
     // Show disclaimer and verify age before proceeding
-    await showDisclaimerAndVerifyAge();
+    await showDisclaimerAndVerifyAge(ageCheck);
 
     const config = await runInteractiveMode({
       search: options.search,
@@ -705,6 +845,7 @@ async function main(): Promise<void> {
       page: options.page,
       all: options.all,
       prefix: options.prefix,
+      prefixMode: options.prefixMode,
       verbose: options.verbose,
       workers: options.workers,
     });
@@ -716,8 +857,8 @@ async function main(): Promise<void> {
     endPage = config.endPage;
     isPageExplicitlySet = config.isPageExplicitlySet;
     allFlag = config.allFlag;
-    effectivePrefix = config.effectivePrefix;
-    hasCustomPrefix = config.hasCustomPrefix;
+    prefixMode = config.prefixMode;
+    customPrefix = config.customPrefix;
     isVerbose = config.isVerbose;
     workers = config.workers;
     downloadAllPages = !isPageExplicitlySet || allFlag;
@@ -725,24 +866,6 @@ async function main(): Promise<void> {
     // -------------------------------------------------------------------------
     // Validate required options
     // -------------------------------------------------------------------------
-    if (!options.search) {
-      showHeader(VERSION);
-      console.error(
-        chalk.red("\nError: Search term is required. Use -s or --search"),
-      );
-      program.help();
-      process.exit(1);
-    }
-    if (!options.directory && !USE_DEFAULT_DIR) {
-      showHeader(VERSION);
-      console.error(
-        chalk.red(
-          "\nError: Download directory is required. Use -d or --directory",
-        ),
-      );
-      program.help();
-      process.exit(1);
-    }
 
     // -------------------------------------------------------------------------
     // EF-DL Header
@@ -750,14 +873,18 @@ async function main(): Promise<void> {
     showHeader(VERSION);
 
     // Show disclaimer and verify age before proceeding
-    await showDisclaimerAndVerifyAge();
+    await showDisclaimerAndVerifyAge(ageCheck);
 
     searchTerm = options.search;
     baseDirectory = options.directory || DEFAULT_DOWNLOAD_DIR;
     isPageExplicitlySet =
       process.argv.includes("-p") || process.argv.includes("--page");
     allFlag = options.all;
-    hasCustomPrefix = !!options.prefix;
+    prefixMode = normalizePrefixMode(
+      options.prefixMode,
+      options.prefix ? "custom" : "none",
+    );
+    customPrefix = options.prefix;
     isVerbose = options.verbose;
 
     // Parse page number
@@ -772,9 +899,15 @@ async function main(): Promise<void> {
       pageNum = 1;
     }
 
-    effectivePrefix = options.prefix || String(pageNum);
+    if (prefixMode === "custom" && !customPrefix) {
+      console.error(
+        chalk.red("Error: --prefix is required when --prefix-mode is custom"),
+      );
+      process.exit(1);
+    }
     startPage = pageNum;
     downloadAllPages = !isPageExplicitlySet || allFlag;
+    endPage = isPageExplicitlySet && !allFlag ? pageNum : undefined;
     workers = parseInt(options.workers, 10);
   }
 
@@ -794,8 +927,8 @@ async function main(): Promise<void> {
     pageNum,
     isPageExplicitlySet,
     allFlag,
-    effectivePrefix,
-    hasCustomPrefix,
+    prefixMode,
+    customPrefix,
     isVerbose,
     useParallel,
     workers,
@@ -819,8 +952,11 @@ async function main(): Promise<void> {
       startPage,
       endPage,
       workers,
-      fresh: options.fresh,
+      fresh: options.force,
       verbose: options.verbose,
+      prefixMode,
+      customPrefix,
+      cache: cacheOverride,
     });
 
     await coordinator.run();
@@ -830,7 +966,8 @@ async function main(): Promise<void> {
 
     if (downloadAllPages) {
       await downloadAllPagesWorkflow(searchTerm, baseDirectory, startPage, {
-        prefix: options.prefix,
+        prefixMode,
+        customPrefix,
         verbose: options.verbose,
       });
     } else {
@@ -838,12 +975,13 @@ async function main(): Promise<void> {
         searchTerm,
         baseDirectory,
         startPage,
-        effectivePrefix,
+        prefixMode,
+        customPrefix,
       );
     }
 
     // Legacy cleanup prompt (coordinator has its own)
-    await promptForCleanup(baseDirectory, searchTerm);
+    await promptForCleanup(baseDirectory, searchTerm, cacheOverride);
   }
 
   console.log(chalk.green.bold("\nProcess completed successfully!"));

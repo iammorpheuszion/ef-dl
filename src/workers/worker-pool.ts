@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { TaskQueue } from "./task-queue.js";
 import type { WorkerPoolOptions, WorkerPoolResult } from "./types.js";
 import { logger } from "../utils/logger";
+import type { PrefixMode } from "../types/enums.js";
 
 /**
  * Worker Pool Manager
@@ -19,13 +20,15 @@ export class WorkerPool {
   private results: Map<string, { code: number; signal: string | null }>;
   private searchTerm: string;
   private downloadDir: string;
+  private prefixMode: PrefixMode;
+  private customPrefix?: string;
 
   constructor(
     queue: TaskQueue,
     workerCount: number,
     searchTerm: string,
     downloadDir: string,
-    options: WorkerPoolOptions = {}
+    options: WorkerPoolOptions = {},
   ) {
     this.queue = queue;
     this.workerCount = Math.max(1, Math.min(10, workerCount)); // Clamp 1-10
@@ -34,6 +37,8 @@ export class WorkerPool {
     this.results = new Map();
     this.searchTerm = searchTerm;
     this.downloadDir = downloadDir;
+    this.prefixMode = options.prefixMode || "page";
+    this.customPrefix = options.customPrefix;
   }
 
   /**
@@ -42,7 +47,7 @@ export class WorkerPool {
   async start(): Promise<void> {
     if (this.options.verbose) {
       logger.debug(
-        chalk.blue(`Starting ${this.workerCount} worker processes...`)
+        chalk.blue(`Starting ${this.workerCount} worker processes...`),
       );
     }
 
@@ -70,6 +75,14 @@ export class WorkerPool {
       workerId,
     ];
 
+    if (this.prefixMode) {
+      args.push("--prefix-mode", this.prefixMode);
+    }
+
+    if (this.customPrefix) {
+      args.push("--prefix", this.customPrefix);
+    }
+
     if (this.options.verbose) {
       args.push("--verbose");
     }
@@ -90,7 +103,7 @@ export class WorkerPool {
         output += data.toString();
         logger.error(chalk.red(`[${workerId}] ${data.toString().trim()}`));
       });
-      
+
       // Log output on exit if there was an error
       worker.on("close", (code) => {
         if (code !== 0 && output) {
@@ -105,7 +118,8 @@ export class WorkerPool {
       this.workers.delete(workerId);
 
       if (this.options.verbose) {
-        const status = code === 0 ? chalk.green("completed") : chalk.red("failed");
+        const status =
+          code === 0 ? chalk.green("completed") : chalk.red("failed");
         logger.debug(chalk.gray(`[${workerId}] ${status} (code: ${code})`));
       }
     });
@@ -143,8 +157,8 @@ export class WorkerPool {
       if (this.options.verbose && activeWorkers > 0) {
         logger.debug(
           chalk.gray(
-            `Progress: ${progress.completed}/${progress.total} PDFs (${activeWorkers} workers active)`
-          )
+            `Progress: ${progress.completed}/${progress.total} PDFs (${activeWorkers} workers active)`,
+          ),
         );
       }
     }
@@ -171,8 +185,8 @@ export class WorkerPool {
     if (this.options.verbose) {
       logger.debug(
         chalk.green(
-          `✓ All workers completed: ${result.completedWorkers} succeeded, ${result.failedWorkers} failed`
-        )
+          `✓ All workers completed: ${result.completedWorkers} succeeded, ${result.failedWorkers} failed`,
+        ),
       );
     }
 

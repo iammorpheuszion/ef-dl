@@ -8,9 +8,9 @@ on:
 
 env:
   DOCKER_REGISTRY: docker.io
-  DOCKERHUB_IMAGE_NAME: ${{ secrets.DOCKER_USER }}/${{ github.event.repository.name }}
+  DOCKERHUB_IMAGE_NAME: ${{ secrets.DOCKER_USER }}/ef-dl
   GHCR_REGISTRY: ghcr.io
-  GHCR_IMAGE_NAME: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+  GHCR_IMAGE_NAME: ${{ github.repository_owner }}/ef-dl
   IMAGE_ARCHITECTURES: linux/amd64,linux/arm64
   PLATFORMS: amd64,arm64
 

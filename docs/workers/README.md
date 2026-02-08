@@ -36,21 +36,25 @@ Complete technical specification for the parallel download system using a produc
    - PDF Downloads: `{downloadDir}/files/{search-term}/`
    - Granularity: PDF-level tasks
 
-3. **Workers**: 5 default, range 1-10
+3. **Workers**: 4 default, range 1-10
    - Each worker stays alive and processes multiple PDFs
-   - Spawns as separate processes
+   - Spawns as separate processes (total processes = 1 coordinator + N workers)
 
-4. **Status Codes**:
+4. **Prefix Modes**: none, page, custom
+   - Default: none (no filename prefix)
+   - Custom requires `--prefix`
+
+5. **Status Codes**:
    - 0 = Pending
    - 1 = In Progress
    - 2 = Completed
    - 3 = Failed
 
-5. **Resume**: Prompt user when existing queue detected
+6. **Resume**: Prompt user when existing queue detected
    - Shows completed/pending/failed counts
    - Option to resume or start fresh
 
-6. **Cleanup**: Cache deletion prompt at end
+7. **Cleanup**: Cache deletion prompt at end
    - Default: Yes if all downloads successful
    - Default: No if incomplete (for resume)
    - Deletes: `{downloadDir}/cache/{search-term}/` (after closing the queue DB)
@@ -81,8 +85,12 @@ Complete technical specification for the parallel download system using a produc
 ### CLI Flags
 
 ```bash
---workers <1-10>    # Number of workers (default: 5)
---fresh             # Force fresh start, ignore resume
+--age <boolean> # Confirm you are 18+ (true/false)
+-w, --workers <1-10>    # Number of workers (default: 4)
+-c, --cache <boolean>   # Keep cache for this search (true/false)
+--prefix-mode <mode> # Prefix mode: none, page, custom (default: none)
+--prefix <string>    # Custom filename prefix (requires --prefix-mode custom)
+-f, --force         # Force fresh start, ignore resume
 --sequential        # Use sequential download (no parallel)
 -v, --verbose       # Show worker activity and debug logs
 ```

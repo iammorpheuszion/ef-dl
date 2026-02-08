@@ -101,6 +101,8 @@ export class Coordinator {
         this.downloadDir,
         {
           verbose: this.options.verbose,
+          prefixMode: this.options.prefixMode,
+          customPrefix: this.options.customPrefix,
           onProgress: (progress) => {
             const total = this.totalPdfs || progress.total;
             const completed = progress.completed + progress.failed;
@@ -582,6 +584,18 @@ export class Coordinator {
   private async promptForCleanup(result: CoordinatorResult): Promise<void> {
     const cacheDir = path.join(this.downloadDir, "cache", this.searchTerm);
     const allSuccessful = result.failedPdfs === 0;
+
+    if (this.options.cache !== undefined) {
+      if (this.options.cache) {
+        logger.info(chalk.gray("Cache preserved for potential resume"));
+        return;
+      }
+      this.stopPdfProgressPolling();
+      this.queue.delete();
+      this.queueDeleted = true;
+      logger.info(chalk.green("✓ Cache cleaned up"));
+      return;
+    }
 
     const shouldCleanup = await prompt({
       type: PromptType.Confirm,
