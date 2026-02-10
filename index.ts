@@ -65,7 +65,8 @@ import { Coordinator } from "./src/workers/index.js";
 // ============================================================================
 
 /** Application version from package.json */
-const packageJson = JSON.parse(fs.readFileSync("./package.json", "utf-8"));
+const packageJsonPath = path.join(import.meta.dirname, "package.json");
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
 const VERSION = packageJson.version;
 const USE_DEFAULT_DIR = process.env.USE_DEFAULT_DIR === "true";
 const DEFAULT_DOWNLOAD_DIR = "./downloads";

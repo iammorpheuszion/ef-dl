@@ -1,6 +1,6 @@
 {
   "name": "ef-dl",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Epstein file downloader tool to download live files from the US DOJ Epstein Files search portal (Bun runtime required)",
   "module": "index.ts",
   "type": "module",
